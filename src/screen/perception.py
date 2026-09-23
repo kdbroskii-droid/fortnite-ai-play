@@ -12,7 +12,7 @@ Optional dependencies:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from typing import Any, Optional
 import re
 
@@ -61,11 +61,7 @@ class PerceptionResult:
     crosshair: Optional[BoundingBox]
     objects: list[BoundingBox]
     item_category: str = "unknown"
-    item_flags: dict[str, bool] = None
-
-    def __post_init__(self) -> None:
-        if self.item_flags is None:
-            self.item_flags = {}
+    item_flags: dict[str, bool] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
