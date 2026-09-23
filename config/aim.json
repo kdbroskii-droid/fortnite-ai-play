@@ -1,0 +1,6 @@
+{
+  "miss_percent": 3.0,
+  "torso_percent": 67.0,
+  "head_percent": 30.0,
+  "description": "Game-independent aim simulation probabilities"
+}
