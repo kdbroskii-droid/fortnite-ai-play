@@ -1,0 +1,23 @@
+{
+  "capture": {
+    "fps": 10,
+    "monitor": 1,
+    "region": null
+  },
+  "ocr": {
+    "enabled": true
+  },
+  "vision": {
+    "enabled": true,
+    "confidence": 0.35,
+    "model": "yolo11n.pt"
+  },
+  "tracking": {
+    "max_distance": 120,
+    "max_missing": 8
+  },
+  "recording": {
+    "save_states": true,
+    "path": "data/screen_states.json"
+  }
+}
