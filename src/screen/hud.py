@@ -6,6 +6,11 @@ from .perception import TextDetection
 
 
 class HudParser:
+    WEAPON_TYPES = (
+        "shotgun", "pistol", "rifle", "sniper rifle", "sniper", "dmr",
+        "smg", "submachine gun", "launcher", "bow", "blade",
+    )
+
     def __init__(self) -> None:
         self.number = re.compile(r"(?<!\d)(\d{1,5})(?!\d)")
 
@@ -18,6 +23,9 @@ class HudParser:
             t = d.text.strip()
             low = t.lower()
             nums = self._numbers(t)
+            weapon = self.detect_weapon_type(t)
+            if weapon:
+                out["current_weapon"] = weapon
             if any(k in low for k in ("wood", "brick", "metal")) and nums:
                 value = nums[-1]
                 if "wood" in low: out["wood"] = value
@@ -36,12 +44,18 @@ class HudParser:
                 out["storm_time_remaining"] = float(nums[-1])
             elif "elimination" in low or "elim" in low:
                 if nums: out["eliminations"] = nums[-1]
-            elif t and len(t) <= 40 and not nums and self._looks_like_weapon(t):
-                out["current_weapon"] = t
         return out
 
-    @staticmethod
-    def _looks_like_weapon(text: str) -> bool:
-        words = text.lower().split()
-        hints = {"rifle", "shotgun", "smg", "pistol", "sniper", "launcher", "bow", "blade"}
-        return any(w.strip(".,:;()[]") in hints for w in words)
+    @classmethod
+    def detect_weapon_type(cls, text: str) -> str | None:
+        """Return a normalized weapon category if OCR contains one."""
+        low = re.sub(r"[^a-z0-9 ]+", " ", text.lower())
+        low = re.sub(r"\s+", " ", low).strip()
+        for weapon in cls.WEAPON_TYPES:
+            if re.search(r"\b" + re.escape(weapon) + r"\b", low):
+                if weapon == "sniper":
+                    return "sniper rifle"
+                if weapon == "submachine gun":
+                    return "smg"
+                return weapon
+        return None
