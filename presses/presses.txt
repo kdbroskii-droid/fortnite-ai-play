@@ -1,0 +1,7 @@
+# Button press definitions
+# Declarative test/action format only. This file is not an input injector.
+# Add your own definitions below.
+
+when test_button is pressed
+do key "space"
+end
