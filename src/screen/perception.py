@@ -60,6 +60,12 @@ class PerceptionResult:
     guns: list[BoundingBox]
     crosshair: Optional[BoundingBox]
     objects: list[BoundingBox]
+    item_category: str = "unknown"
+    item_flags: dict[str, bool] = None
+
+    def __post_init__(self) -> None:
+        if self.item_flags is None:
+            self.item_flags = {}
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -70,6 +76,8 @@ class PerceptionResult:
             "guns": [x.to_dict() for x in self.guns],
             "crosshair": self.crosshair.to_dict() if self.crosshair else None,
             "objects": [x.to_dict() for x in self.objects],
+            "item_category": self.item_category,
+            "item_flags": self.item_flags,
         }
 
 
