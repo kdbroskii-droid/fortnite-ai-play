@@ -40,3 +40,40 @@ Example:
 ```
 
 The implementation is intentionally separated from the AI decision layer so the AI can later produce validated actions without directly controlling the OS.
+
+
+## Chromebook / Linux (x86_64)
+
+The repository includes a Linux/Chromebook launcher for the observation pipeline. It uses Python, MSS screen capture, OpenCV, and OCR. The Linux launcher is observation-only: it captures and analyzes the desktop but does not send keyboard or mouse input.
+
+### Install
+
+From the repository directory:
+
+```bash
+bash install_linux.sh
+```
+
+### Run
+
+```bash
+bash run_linux.sh
+```
+
+You can lower or raise the capture rate:
+
+```bash
+bash run_linux.sh --fps 3
+```
+
+The default is 5 FPS to keep CPU usage reasonable on a Chromebook.
+
+### Tests
+
+```bash
+source .venv/bin/activate
+```
+
+```bash
+pytest -q
+```
