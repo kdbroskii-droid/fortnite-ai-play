@@ -11,6 +11,7 @@ from .perception import OCRReader, HudTextInterpreter, CrosshairDetector, Percep
 from .recorder import FrameRecorder, ScreenState
 from .hud import HudParser
 from .tracker import ObjectTracker
+from .non_weapon_classifier import classify_non_weapon
 
 
 class ScreenPipeline:
@@ -29,12 +30,34 @@ class ScreenPipeline:
         height, width = frame.shape[:2]
         text = self.ocr.read(frame)
         hud_values = self.hud.parse(text)
+
+        # Classify visible OCR text using the non-weapon item classifier.
+        item_classification = {"category": "unknown"}
+        for detection in text:
+            candidate = classify_non_weapon(detection.text)
+            if candidate["category"] != "unknown":
+                item_classification = candidate
+                break
         detections = self.detector.detect(frame) if self.detector else []
         players = [d for d in detections if d.label.lower() in {"person", "player"}]
         guns = [d for d in detections if d.label.lower() in {"gun", "weapon"}]
         crosshair = self.crosshair.detect(frame)
         tracked = self.tracker.update(detections)
-        result = PerceptionResult(width, height, text, players, guns, crosshair, tracked)
+        result = PerceptionResult(
+            frame_width=width,
+            frame_height=height,
+            text=text,
+            players=players,
+            guns=guns,
+            crosshair=crosshair,
+            objects=tracked,
+            item_category=item_classification["category"],
+            item_flags={
+                key: value
+                for key, value in item_classification.items()
+                if key not in {"name", "normalized_name", "category"}
+            },
+        )
         state = ScreenState(
             players_visible=len(players),
             crosshair_center_x=crosshair.center[0] if crosshair else None,
@@ -52,6 +75,12 @@ class ScreenPipeline:
             storm_time_remaining=hud_values.get("storm_time_remaining"),
             match_time=hud_values.get("match_time"),
             eliminations=hud_values.get("eliminations"),
+            item_category=item_classification["category"],
+            item_flags={
+                key: value
+                for key, value in item_classification.items()
+                if key not in {"name", "normalized_name", "category"}
+            },
         )
         self.recorder.add_frame(frame, state)
         return result, state
