@@ -50,6 +50,9 @@ class ScreenState:
     match_time: Optional[float] = None
     eliminations: Optional[int] = None
 
+    item_category: str = "unknown"
+    item_flags: dict[str, bool] = field(default_factory=dict)
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
