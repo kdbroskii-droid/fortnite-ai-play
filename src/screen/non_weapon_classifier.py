@@ -1,7 +1,7 @@
 """Generic non-weapon item name classifier.
 
-This module is intentionally data-driven: add or remove non-weapon names
-from the category lists without changing the matching logic.
+This module is data-driven and safe for OCR text classification. It does not
+contain weapon-specific categories.
 """
 
 from __future__ import annotations
@@ -11,60 +11,28 @@ from typing import Dict, List
 
 
 NON_WEAPON_CATEGORIES: Dict[str, List[str]] = {
-    "healing_item": [
-        "med kit",
-        "medkit",
-        "bandage",
-        "med mist",
-    ],
-    "shield_item": [
-        "shield potion",
-        "small shield potion",
-        "shield keg",
-        "slurp juice",
-    ],
-    "mobility_item": [
-        "shockwave grenade",
-        "impulse grenade",
-        "grappler",
-        "launch pad",
-    ],
-    "vehicle": [
-        "car",
-        "truck",
-        "boat",
-        "bus",
-        "quad",
-        "motorcycle",
-    ],
-    "material": [
-        "wood",
-        "brick",
-        "stone",
-        "metal",
-    ],
-    "objective_item": [
-        "key",
-        "capture point",
-        "quest item",
-    ],
-    "consumable": [
-        "apple",
-        "mushroom",
-        "corn",
-        "coconut",
-    ],
-    "device": [
-        "campfire",
-        "launch pad",
-        "bouncer",
-    ],
+    "healing_item": ["med kit", "medkit", "bandage", "med mist"],
+    "shield_item": ["shield potion", "small shield potion", "shield keg", "slurp juice"],
+    "mobility_item": ["shockwave grenade", "impulse", "grappler", "launch pad"],
+    "vehicle": ["car", "truck", "boat", "bus", "quad", "motorcycle"],
+    "material": ["wood", "brick", "stone", "metal"],
+    "objective_item": ["key", "capture point", "quest item"],
+    "consumable": ["apple", "mushroom", "corn", "coconut"],
+    "device": ["campfire", "launch pad", "bouncer"],
 }
+
+_COMPILED_PATTERNS = [
+    (category, re.compile(rf"\b{re.escape(item_name.casefold().strip())}\b"))
+    for category, names in NON_WEAPON_CATEGORIES.items()
+    for item_name in names
+]
 
 
 def normalize_name(name: str) -> str:
     """Normalize OCR text before matching."""
-    return re.sub(r"\\s+", " ", name.casefold().strip())
+    normalized = name.casefold()
+    normalized = re.sub(r"[^\w\s-]", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
 
 
 def classify_non_weapon(name: str) -> dict:
@@ -80,21 +48,25 @@ def classify_non_weapon(name: str) -> dict:
     for category in NON_WEAPON_CATEGORIES:
         result[category] = False
 
-    for category, names in NON_WEAPON_CATEGORIES.items():
-        for item_name in names:
-            if re.search(rf"\\b{re.escape(normalize_name(item_name))}\\b", normalized):
-                result["category"] = category
-                result[category] = True
-                return result
+    for category, pattern in _COMPILED_PATTERNS:
+        if pattern.search(normalized):
+            result["category"] = category
+            result[category] = True
+            return result
 
     return result
 
 
 def add_item(category: str, item_name: str) -> None:
-    """Add a non-weapon item to a category at runtime."""
+    """Add a non-weapon item and compile its pattern immediately."""
     if category not in NON_WEAPON_CATEGORIES:
         NON_WEAPON_CATEGORIES[category] = []
 
-    item_name = item_name.strip()
-    if item_name and item_name not in NON_WEAPON_CATEGORIES[category]:
-        NON_WEAPON_CATEGORIES[category].append(item_name)
+    item_name = item_name.casefold().strip()
+    if not item_name or item_name in NON_WEAPON_CATEGORIES[category]:
+        return
+
+    NON_WEAPON_CATEGORIES[category].append(item_name)
+    _COMPILED_PATTERNS.append(
+        (category, re.compile(rf"\b{re.escape(item_name)}\b"))
+    )
