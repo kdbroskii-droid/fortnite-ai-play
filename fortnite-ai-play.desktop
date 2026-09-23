@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Fortnite AI Play
+Comment=Observation and diagnostics app
+Exec=/bin/bash -lc 'cd "$HOME/fortnite-ai-play" && bash launch_app.sh'
+Terminal=false
+Categories=Utility;
