@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "required": ["name", "actions"],
+  "properties": {
+    "name": {"type": "string"},
+    "actions": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"type":"object","required":["type","key"],"properties":{"type":{"const":"key_down"},"key":{"type":"string"}}},
+          {"type":"object","required":["type","key"],"properties":{"type":{"const":"key_up"},"key":{"type":"string"}}},
+          {"type":"object","required":["type","ms"],"properties":{"type":{"const":"delay"},"ms":{"type":"integer","minimum":0}}},
+          {"type":"object","required":["type","dx","dy"],"properties":{"type":{"const":"mouse_move"},"dx":{"type":"number"},"dy":{"type":"number"}}},
+          {"type":"object","required":["type","button"],"properties":{"type":{"const":"mouse_down"},"button":{"type":"string"}}},
+          {"type":"object","required":["type","button"],"properties":{"type":{"const":"mouse_up"},"button":{"type":"string"}}},
+          {"type":"object","required":["type","delta"],"properties":{"type":{"const":"mouse_wheel"},"delta":{"type":"number"}}}
+        ]
+      }
+    }
+  }
+}
