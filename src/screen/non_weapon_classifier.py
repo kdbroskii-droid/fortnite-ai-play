@@ -1,42 +1,65 @@
-"""Generic non-weapon item name classifier.
+"""Generic Fortnite item name classifier optimized for high-FPS OCR.
 
-This module is data-driven and safe for OCR text classification. It does not
-contain weapon-specific categories.
+This module uses pre-compiled regex patterns for performance and includes
+basic OCR artifact sanitization.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 
-NON_WEAPON_CATEGORIES: Dict[str, List[str]] = {
-    "healing_item": ["med kit", "medkit", "bandage", "med mist"],
-    "shield_item": ["shield potion", "small shield potion", "shield keg", "slurp juice"],
-    "mobility_item": ["shockwave grenade", "impulse", "grappler", "launch pad"],
-    "vehicle": ["car", "truck", "boat", "bus", "quad", "motorcycle"],
+# Dictionaries in Python preserve order. Categories at the top are checked first.
+CATEGORY_KEYWORDS: Dict[str, List[str]] = {
+    # --- Exceptions & Non-Weapons (Checked First) ---
+    "mobility_item": ["shockwave", "impulse", "grappler", "launch pad", "crash pad", "rift"],
+    "healing_item": ["med kit", "medkit", "bandage", "med mist", "chug", "flopper"],
+    "shield_item": ["shield", "slurp", "keg", "flowberry"],
+    "vehicle": ["car", "truck", "boat", "bus", "quad", "motorcycle", "bike"],
     "material": ["wood", "brick", "stone", "metal"],
-    "objective_item": ["key", "capture point", "quest item"],
-    "consumable": ["apple", "mushroom", "corn", "coconut"],
-    "device": ["campfire", "launch pad", "bouncer"],
+    "objective_item": ["key", "capture point", "quest", "medallion"],
+    "device": ["campfire", "bouncer"],
+    
+    # --- Melee & Traps ---
+    "melee": ["pickaxe", "blade", "hammer", "chains of hades"],
+    "trap": ["trap", "dynamo"],
+
+    # --- Weapons (Checked Last for Catch-Alls) ---
+    "shotgun": ["shotgun"],
+    "smg": ["smg", "submachine gun"],
+    "sniper": ["sniper", "hunting rifle"],
+    "pistol": ["pistol", "hand cannon", "revolver", "flint-knock"],
+    "explosive": ["launcher", "grenade", "clinger"], 
+    "assault_rifle": ["assault rifle", "scar", "ar", "rifle"],
 }
 
-_COMPILED_PATTERNS = [
-    (category, re.compile(rf"\b{re.escape(item_name.casefold().strip())}\b"))
-    for category, names in NON_WEAPON_CATEGORIES.items()
-    for item_name in names
+
+# Pre-compile regex patterns to avoid rebuilding them during high-frequency OCR loops.
+# Stores tuples of (category, compiled_regex)
+COMPILED_PATTERNS: List[Tuple[str, re.Pattern]] = [
+    (category, re.compile(rf"\b{re.escape(keyword)}\b"))
+    for category, keywords in CATEGORY_KEYWORDS.items()
+    for keyword in keywords
 ]
+
+# Translation table for common OCR misreads (e.g., "sh1eld" -> "shield")
+OCR_TYPOS = str.maketrans("105", "ios")
 
 
 def normalize_name(name: str) -> str:
-    """Normalize OCR text before matching."""
-    normalized = name.casefold()
+    """Normalize OCR text, fix common number-to-letter typos, and stabilize boundaries."""
+    # Convert to lowercase and fix basic OCR number/letter confusion
+    normalized = name.casefold().translate(OCR_TYPOS)
+    
+    # Replace non-word characters (except hyphens) with spaces to ensure \b works predictably
     normalized = re.sub(r"[^\w\s-]", " ", normalized)
+    
     return re.sub(r"\s+", " ", normalized).strip()
 
 
-def classify_non_weapon(name: str) -> dict:
-    """Return the first matching non-weapon category and boolean flags."""
+def classify_item(name: str) -> dict:
+    """Return the first matching category and boolean flags using pre-compiled regex."""
     normalized = normalize_name(name)
 
     result = {
@@ -45,28 +68,27 @@ def classify_non_weapon(name: str) -> dict:
         "category": "unknown",
     }
 
-    for category in NON_WEAPON_CATEGORIES:
+    # Initialize all category flags to False
+    for category in CATEGORY_KEYWORDS:
         result[category] = False
 
-    for category, pattern in _COMPILED_PATTERNS:
+    # Check against pre-compiled patterns
+    for category, pattern in COMPILED_PATTERNS:
         if pattern.search(normalized):
             result["category"] = category
             result[category] = True
-            return result
+            break  # Stop checking once we find the highest priority match
 
     return result
 
 
-def add_item(category: str, item_name: str) -> None:
-    """Add a non-weapon item and compile its pattern immediately."""
-    if category not in NON_WEAPON_CATEGORIES:
-        NON_WEAPON_CATEGORIES[category] = []
+def add_keyword(category: str, keyword: str) -> None:
+    """Add a matching keyword and compile its regex at runtime."""
+    if category not in CATEGORY_KEYWORDS:
+        CATEGORY_KEYWORDS[category] = []
 
-    item_name = item_name.casefold().strip()
-    if not item_name or item_name in NON_WEAPON_CATEGORIES[category]:
-        return
-
-    NON_WEAPON_CATEGORIES[category].append(item_name)
-    _COMPILED_PATTERNS.append(
-        (category, re.compile(rf"\b{re.escape(item_name)}\b"))
-    )
+    keyword = keyword.casefold().strip()
+    if keyword and keyword not in CATEGORY_KEYWORDS[category]:
+        CATEGORY_KEYWORDS[category].append(keyword)
+        # Immediately compile and append the new pattern so it works in the very next frame
+        COMPILED_PATTERNS.append((category, re.compile(rf"\b{re.escape(keyword)}\b")))
